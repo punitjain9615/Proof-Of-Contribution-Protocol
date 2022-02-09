@@ -1,0 +1,37 @@
+import { ethers, upgrades } from "hardhat";
+
+describe("POCP Upgrade", function () {
+  it("deploys and upgrades", async function () {
+    const POCP = await ethers.getContractFactory("POCP");
+    const proxy = await upgrades.deployProxy(POCP, { kind: "uups" });
+
+    // console.log(proxy.address);
+
+    const [owner] = await ethers.getSigners();
+    // const owner = await proxy.owner();
+    console.log("Owner = ", owner.address);
+    console.log(
+      "Owner Balance in V1 = ",
+      (await proxy.balanceOf(owner.address)).toString()
+    );
+
+    const V2 = await ethers.getContractFactory("POCPv2");
+    const proxy2 = await upgrades.upgradeProxy(proxy, V2);
+
+    // console.log(proxy2.address);
+
+    console.log(
+      "Owner Balance in V2 = ",
+      (await proxy2.balanceOf(owner.address)).toString()
+    );
+    console.log(
+      "New value existing only in V2 before being initialized = ",
+      await proxy2.getWhatever()
+    );
+    await proxy2.setWhatever("0x1111111111111111111111111111111111111111");
+    console.log(
+      "New value existing only in V2 after being initialized  = ",
+      await proxy2.getWhatever()
+    );
+  });
+});
