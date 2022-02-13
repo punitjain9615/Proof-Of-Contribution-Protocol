@@ -33,5 +33,6 @@ describe("POCP Upgrade", function () {
       "New value existing only in V2 after being initialized  = ",
       await proxy2.getWhatever()
     );
+    console.log("Total supply ", (await proxy2.totalSupply()).toString());
   });
 });

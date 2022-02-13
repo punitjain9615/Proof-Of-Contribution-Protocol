@@ -3,12 +3,13 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URIStorageUpgradeable.sol"; 
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract POCP is Initializable, ERC721Upgradeable, ERC721EnumerableUpgradeable, PausableUpgradeable, AccessControlUpgradeable, UUPSUpgradeable {
+contract POCP is Initializable, ERC721Upgradeable, ERC721EnumerableUpgradeable, ERC721URIStorageUpgradeable, PausableUpgradeable, AccessControlUpgradeable, UUPSUpgradeable {
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
@@ -64,5 +65,46 @@ contract POCP is Initializable, ERC721Upgradeable, ERC721EnumerableUpgradeable, 
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
+    }
+
+    function mint(uint256 numberOfTokens, string[] memory tokenURIs, address[] memory mintTo) public payable onlyRole(MINTER_ROLE) {
+        // Number of tokens can't be 0.
+        require(numberOfTokens != 0, "You need to mint at least 1 token");
+        // Check that the number of tokens requested doesn't exceed the max. allowed.
+        // require(numberOfTokens <= maxMint, "You can only mint 10 tokens at a time");
+        // Check that the number of tokens requested wouldn't exceed what's left.
+        // require(totalSupply().add(numberOfTokens) <= MAX_TOKENS, "Minting would exceed max. supply");
+        // Check that the right amount of Ether was sent.
+        // require(mintPrice.mul(numberOfTokens) <= msg.value, "Not enough Ether sent.");
+
+        // For each token requested, mint one.
+        for(uint256 i = 0; i < numberOfTokens; i++) {
+            uint256 mintIndex = totalSupply();
+            // if(mintIndex < MAX_TOKENS) {
+                /** 
+                 * Mint token using inherited ERC721 function
+                 * msg.sender is the wallet address of mint requester
+                 * mintIndex is used for the tokenId (must be unique)
+                 */
+            _safeMint(mintTo[i], mintIndex);
+            _setTokenURI(mintIndex, tokenURIs[i]);
+            // }
+        }
+    }
+
+    function _burn(uint256 tokenId)
+        internal
+        override(ERC721Upgradeable, ERC721URIStorageUpgradeable)
+    {
+        super._burn(tokenId);
+    }
+
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override(ERC721Upgradeable, ERC721URIStorageUpgradeable)
+        returns (string memory)
+    {
+        return super.tokenURI(tokenId);
     }
 }
