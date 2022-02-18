@@ -1,15 +1,24 @@
+import { signMetaTxRequest } from "../src/signer";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { Contract } from "ethers";
 import { ethers, upgrades } from "hardhat";
 const { assert, expect } = require("chai");
 
 describe("POCP", function () {
   let pocpProxy: Contract;
-  let owner: { address: any };
-  let addr1: { address: any };
-  let addr2: { address: any };
+  let trustedForwarder: Contract;
+  let owner: SignerWithAddress;
+  let addr1: SignerWithAddress;
+  let addr2: SignerWithAddress;
   beforeEach(async function () {
     const POCP = await ethers.getContractFactory("POCP");
-    pocpProxy = await upgrades.deployProxy(POCP, { kind: "uups" });
+    const trustedForwarderContract = await ethers.getContractFactory(
+      "MinimalForwarder"
+    );
+    trustedForwarder = await trustedForwarderContract.deploy();
+    pocpProxy = await upgrades.deployProxy(POCP, [trustedForwarder.address], {
+      kind: "uups",
+    });
     [owner, addr1, addr2] = await ethers.getSigners();
   });
 
@@ -26,18 +35,30 @@ describe("POCP", function () {
 
   describe("minting", async function () {
     it("mints tokens as expected", async function () {
-      await pocpProxy.mint(
-        3,
-        [
-          "ipfs://bafybeibnsoufr2renqzsh347nrx54wcubt5lgkeivez63xvivplfwhtpym/metadata.json",
-          "ipfs://bafybeibnsoufr2renqzsh347nrx54wcubt5lgkeivez63xvivplfwhtpym/metadata.json",
-          "ipfs://bafybeibnsoufr2renqzsh347nrx54wcubt5lgkeivez63xvivplfwhtpym/metadata.json",
-        ],
-        [owner.address, addr1.address, addr2.address],
+      console.log(signMetaTxRequest);
+      const { request, signature } = await signMetaTxRequest(
+        owner.provider,
+        trustedForwarder,
         {
-          value: ethers.utils.parseEther("0.15"),
+          from: owner.address,
+          to: pocpProxy.address,
+          data: pocpProxy.interface.encodeFunctionData("mint", [
+            3,
+            [
+              "ipfs://bafybeibnsoufr2renqzsh347nrx54wcubt5lgkeivez63xvivplfwhtpym/metadata.json",
+              "ipfs://bafybeibnsoufr2renqzsh347nrx54wcubt5lgkeivez63xvivplfwhtpym/metadata.json",
+              "ipfs://bafybeibnsoufr2renqzsh347nrx54wcubt5lgkeivez63xvivplfwhtpym/metadata.json",
+            ],
+            [owner.address, addr1.address, addr2.address],
+          ]),
         }
       );
+      await trustedForwarder
+        .execute(request, signature, {
+          value: ethers.utils.parseEther("0.15"),
+        })
+        .then((tx: any) => tx.wait());
+
       const totalSupply = await pocpProxy.totalSupply();
       assert.equal(totalSupply, 3);
       expect(await pocpProxy.balanceOf(owner.address)).to.equal(1);

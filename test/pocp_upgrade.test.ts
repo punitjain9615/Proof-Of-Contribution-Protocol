@@ -3,7 +3,13 @@ import { ethers, upgrades } from "hardhat";
 describe("POCP Upgrade", function () {
   it("deploys and upgrades", async function () {
     const POCP = await ethers.getContractFactory("POCP");
-    const proxy = await upgrades.deployProxy(POCP, { kind: "uups" });
+    const trustedForwarderContract = await ethers.getContractFactory(
+      "MinimalForwarder"
+    );
+    const trustedForwarder = await trustedForwarderContract.deploy();
+    const proxy = await upgrades.deployProxy(POCP, [trustedForwarder.address], {
+      kind: "uups",
+    });
 
     // console.log(proxy.address);
 

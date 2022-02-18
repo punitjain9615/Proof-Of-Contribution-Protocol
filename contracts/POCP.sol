@@ -8,26 +8,39 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "./DAOManager.sol";
 
-contract POCP is Initializable, ERC721Upgradeable, ERC721EnumerableUpgradeable, ERC721URIStorageUpgradeable, PausableUpgradeable, AccessControlUpgradeable, UUPSUpgradeable {
+
+import "@openzeppelin/contracts/metatx/MinimalForwarder.sol";
+
+
+contract POCP is Initializable, ERC721Upgradeable, ERC721EnumerableUpgradeable,
+     ERC721URIStorageUpgradeable, PausableUpgradeable, AccessControlUpgradeable, DAOManager, 
+     UUPSUpgradeable {
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+    address private _trustedForwarder;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() initializer {}
 
-    function initialize() initializer public {
+    function initialize(address trustedForwarder) initializer public {
         __ERC721_init("POCP", "POCP");
         __ERC721Enumerable_init();
+        __ERC721URIStorage_init();
         __Pausable_init();
         __AccessControl_init();
+        __DAOManager_init();
         __UUPSUpgradeable_init();
+        
 
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(PAUSER_ROLE, msg.sender);
-        _grantRole(MINTER_ROLE, msg.sender);
-        _grantRole(UPGRADER_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _grantRole(PAUSER_ROLE, _msgSender());
+        _grantRole(MINTER_ROLE, _msgSender());
+        _grantRole(UPGRADER_ROLE, _msgSender());
+
+        _trustedForwarder = trustedForwarder;
     }
 
     function pause() public onlyRole(PAUSER_ROLE) {
@@ -67,7 +80,7 @@ contract POCP is Initializable, ERC721Upgradeable, ERC721EnumerableUpgradeable, 
         return super.supportsInterface(interfaceId);
     }
 
-    function mint(uint256 numberOfTokens, string[] memory tokenURIs, address[] memory mintTo) public payable onlyRole(MINTER_ROLE) {
+    function mint(uint256 numberOfTokens, string[] memory tokenURIs, address[] memory mintTo) public payable onlyRole(MINTER_ROLE) whenNotPaused {
         // Number of tokens can't be 0.
         require(numberOfTokens != 0, "You need to mint at least 1 token");
         // Check that the number of tokens requested doesn't exceed the max. allowed.
@@ -106,5 +119,28 @@ contract POCP is Initializable, ERC721Upgradeable, ERC721EnumerableUpgradeable, 
         returns (string memory)
     {
         return super.tokenURI(tokenId);
+    }
+
+    function isTrustedForwarder(address forwarder) public view virtual returns (bool) {
+        return forwarder == _trustedForwarder;
+    }
+
+    function _msgSender() internal view override(ContextUpgradeable) returns (address sender) {
+        if (isTrustedForwarder(msg.sender)) {
+            // The assembly code is more direct than the Solidity version using `abi.decode`.
+            assembly {
+                sender := shr(96, calldataload(sub(calldatasize(), 20)))
+            }
+        } else {
+            return super._msgSender();
+        }
+    }
+
+    function _msgData() internal view override(ContextUpgradeable) returns (bytes calldata) {
+        if (isTrustedForwarder(msg.sender)) {
+            return msg.data[:msg.data.length - 20];
+        } else {
+            return super._msgData();
+        }
     }
 }
