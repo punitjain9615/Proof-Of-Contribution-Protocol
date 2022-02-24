@@ -1,29 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
-
 interface IGnosis {
   function isOwner(address owner) external view returns (bool);
 }
 
-abstract contract DAOManager is Initializable, ERC721Upgradeable {
-  mapping(address => string) public daos;
-  mapping(address => string) public daoContributionSchemas;
+contract DAOManager {
+  mapping(bytes32 => bytes32) public daos;
 
-  function __DAOManager_init() internal onlyInitializing {}
-
-  function _verifyGnosis(address gnosisContract) internal returns (bool) {
+  function _verifyGnosis(address gnosisContract) internal view returns (bool) {
     bool isOwner = IGnosis(gnosisContract).isOwner(msg.sender);
     return isOwner;
   }
 
-  function _registerDAO(address gnosisContract, string memory daoName, string memory daoContributionSchema)
-    internal
-  {
-    require(_verifyGnosis(gnosisContract), "Sender is not owner of Gnosis Contract");
-    daos[gnosisContract] = daoName;
-    daoContributionSchemas[gnosisContract] = daoContributionSchema;
+  function _registerDAO(address gnosisContract, bytes32 daoName) internal {
+    require(
+      _verifyGnosis(gnosisContract),
+      "Sender is not owner of Gnosis Contract"
+    );
+    bytes32 daoUuid = keccak256(abi.encodePacked(daoName));
+    daos[daoUuid] = daoName;
   }
 }
