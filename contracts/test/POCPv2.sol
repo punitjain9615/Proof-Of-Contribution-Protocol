@@ -7,7 +7,7 @@ contract POCPv2 is POCP {
 
     address public whatever;
 
-    function setWhatever(address whatever_) external onlyRole(MINTER_ROLE) {
+    function setWhatever(address whatever_) external onlyRole(UPGRADER_ROLE) {
 		whatever = whatever_;
 	}
 

@@ -6,56 +6,54 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 
 contract POCPRoles is Initializable, AccessControlUpgradeable {
-  event MinterAdded(bytes32 indexed daoId, address indexed account);
-  event MinterRemoved(bytes32 indexed daoId, address indexed account);
+  event ApproverAdded(bytes32 indexed daoId, address indexed account);
+  event ApproverRemoved(bytes32 indexed daoId, address indexed account);
   bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
   bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
-  bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
   // mapping dao id -> {role_id -> role_data }
-  mapping(bytes32 => RoleData) private _minters;
+  mapping(bytes32 => RoleData) private _approvers;
 
 
   function initialize() initializer public {
         __AccessControl_init();
-        
 
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _grantRole(PAUSER_ROLE, _msgSender());
         _grantRole(UPGRADER_ROLE, _msgSender());
     }
 
-  modifier onlyMinter(bytes32 daoId, address account) {
-    require(isMinter(daoId, account), "Not Minter");
+  modifier onlyApprover(bytes32 daoUuid, address account) {
+    require(isApprover(daoUuid, account), "Not Approver");
     _;
   }
 
-  function isMinter(bytes32 daoId, address account) public view returns (bool) {
-    return _minters[daoId].members[account];
+  function isApprover(bytes32 daoUuid, address account) public view returns (bool) {
+    return _approvers[daoUuid].members[account];
   }
 
-  function addMinter(bytes32 daoId, address account)
+  function addApprover(bytes32 daoUuid, address account)
     public
-    onlyMinter(daoId, account)
+    onlyApprover(daoUuid, account)
   {
-    _addMinter(daoId, account);
+    _addApprover(daoUuid, account);
   }
 
-  function removeMinter(bytes32 daoId, address account)
+  function removeApprover(bytes32 daoUuid, address account)
     public
-    onlyMinter(daoId, account)
+    onlyApprover(daoUuid, account)
   {
-    _removeMinter(daoId, account);
+    _removeApprover(daoUuid, account);
   }
 
-  function _addMinter(bytes32 daoId, address account) internal {
-    _minters[daoId].members[account] = true;
-    emit MinterAdded(daoId, account);
+  function _addApprover(bytes32 daoUuid, address account) internal {
+    _approvers[daoUuid].members[account] = true;
+    emit ApproverAdded(daoUuid, account);
   }
 
-  function _removeMinter(bytes32 daoId, address account) internal {
-    _minters[daoId].members[account] = false;
-    emit MinterRemoved(daoId, account);
+  function _removeApprover(bytes32 daoUuid, address account) internal {
+    _approvers[daoUuid].members[account] = false;
+    emit ApproverRemoved(daoUuid, account);
   }
 
   // For future extensions
