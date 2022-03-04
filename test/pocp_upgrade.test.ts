@@ -2,6 +2,8 @@ import { ethers, upgrades } from "hardhat";
 
 describe("POCP Upgrade", function () {
   it("deploys and upgrades", async function () {
+    const [owner] = await ethers.getSigners();
+    console.log(owner);
     const POCP = await ethers.getContractFactory("POCP");
     const trustedForwarderContract = await ethers.getContractFactory(
       "MinimalForwarder"
@@ -13,7 +15,8 @@ describe("POCP Upgrade", function () {
 
     // console.log(proxy.address);
 
-    const [owner] = await ethers.getSigners();
+    // const [owner] = await ethers.getSigners();
+    // console.log(owner);
     // const owner = await proxy.owner();
     console.log("Owner = ", owner.address);
     console.log(

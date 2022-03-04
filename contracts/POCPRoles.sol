@@ -4,7 +4,6 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-
 contract POCPRoles is Initializable, AccessControlUpgradeable {
   event ApproverAdded(bytes32 indexed daoId, address indexed account);
   event ApproverRemoved(bytes32 indexed daoId, address indexed account);
@@ -14,21 +13,23 @@ contract POCPRoles is Initializable, AccessControlUpgradeable {
   // mapping dao id -> {role_id -> role_data }
   mapping(bytes32 => RoleData) private _approvers;
 
-
-  function initialize() initializer public {
-        __AccessControl_init();
-
-        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _grantRole(PAUSER_ROLE, _msgSender());
-        _grantRole(UPGRADER_ROLE, _msgSender());
-    }
+  function __POCPRoles_init() public initializer {
+    __AccessControl_init();
+    _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
+    _grantRole(PAUSER_ROLE, _msgSender());
+    _grantRole(UPGRADER_ROLE, _msgSender());
+  }
 
   modifier onlyApprover(bytes32 daoUuid, address account) {
     require(isApprover(daoUuid, account), "Not Approver");
     _;
   }
 
-  function isApprover(bytes32 daoUuid, address account) public view returns (bool) {
+  function isApprover(bytes32 daoUuid, address account)
+    public
+    view
+    returns (bool)
+  {
     return _approvers[daoUuid].members[account];
   }
 

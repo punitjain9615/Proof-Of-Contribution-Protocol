@@ -7,9 +7,12 @@ import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URISto
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/draft-EIP712Upgradeable.sol";
 import "./DAOManager.sol";
 import "./POCPRoles.sol";
 import "@openzeppelin/contracts/metatx/MinimalForwarder.sol";
+
 
 contract POCP is
   Initializable,
@@ -19,33 +22,23 @@ contract POCP is
   PausableUpgradeable,
   DAOManager,
   UUPSUpgradeable,
+  EIP712Upgradeable,
   POCPRoles
 {
   address private _trustedForwarder;
 
-  // approved badges
-  // minted badges
+  // constructor() initializer {}
 
-  /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor() initializer {}
-
-  struct Badge {
-    string ipfsUri;
-    bytes32 daoUuid;
-    address approvedBy;
-    bool isMinted;
-    uint256 mintIndex;
+  struct NFTVoucher {
+    uint256 tokenId;
+    uint256 minPrice;
+    string uri;
+    address approvedFor;
+    bytes signature;
   }
 
-  struct BadgeMap {
-    mapping(uint256 => Badge) badgeMap;
-    bool flag;
-  }
-
-  uint256 badgeCount;
-
-  // claimer -> {approvedBadgeId : {  }}
-  mapping(address => BadgeMap) private badges;
+  string private constant SIGNING_DOMAIN = "POCP";
+  string private constant SIGNATURE_VERSION = "1";
 
   function initialize(address trustedForwarder) public initializer {
     __ERC721_init("POCP", "POCP");
@@ -53,7 +46,8 @@ contract POCP is
     __ERC721URIStorage_init();
     __Pausable_init();
     __UUPSUpgradeable_init();
-    POCPRoles.initialize();
+    __EIP712_init(SIGNING_DOMAIN, SIGNATURE_VERSION);
+    __POCPRoles_init();
     _trustedForwarder = trustedForwarder;
   }
 
@@ -102,33 +96,22 @@ contract POCP is
     return super.supportsInterface(interfaceId);
   }
 
-  function approve(
-    uint256 numberOfTokens,
-    bytes32 daoUuid,
-    string[] memory tokenURIs,
-    address[] memory mintTo
-  ) public onlyApprover(daoUuid, _msgSender()) whenNotPaused {
-    address approver = _msgSender();
-    uint256 badgeIndex = badgeCount;
-    for (uint256 i = 0; i < numberOfTokens; i++) {
-      Badge memory badge = Badge({
-        ipfsUri: tokenURIs[i],
-        daoUuid: daoUuid,
-        approvedBy: approver,
-        isMinted: false,
-        mintIndex: 0
-      });
-      badges[mintTo[i]].badgeMap[badgeIndex] = badge;
-    }
+  
+  function register(bytes32 daoName) public whenNotPaused returns (bytes32){
+    bytes32 daoUuid = _registerDAO(daoName);
+    // addApprover(daoUuid, _msgSender());
+    return daoUuid;
   }
 
-  function mint(uint256 badgeId) public payable whenNotPaused {
-    require(badges[_msgSender()].flag == true, "No approved badges");
-    Badge memory badge = badges[_msgSender()].badgeMap[badgeId];
-    require(badge.isMinted == false, "Badge already minted");
-    uint256 mintIndex = totalSupply();
-    _safeMint(_msgSender(), mintIndex);
-    _setTokenURI(mintIndex, badge.ipfsUri);
+  function claim(NFTVoucher calldata voucher) public payable whenNotPaused returns (uint256){
+    address signer = _verify(voucher);
+
+    // require(hasRole(MINTER_ROLE, signer), "Signature invalid or unauthorized");
+    require(voucher.approvedFor == _msgSender(), "Not approved for this address");
+    _mint(signer, voucher.tokenId);
+    _setTokenURI(voucher.tokenId, voucher.uri);    
+    _transfer(signer, _msgSender(), voucher.tokenId);
+    return voucher.tokenId;
   }
 
   function _burn(uint256 tokenId)
@@ -147,6 +130,32 @@ contract POCP is
     return super.tokenURI(tokenId);
   }
 
+
+  // VOUCHER FUNCTIONS
+
+  function _hash(NFTVoucher calldata voucher) internal view returns (bytes32) {
+    return _hashTypedDataV4(keccak256(abi.encode(
+      keccak256("NFTVoucher(uint256 tokenId,uint256 minPrice,string uri)"),
+      voucher.tokenId,
+      voucher.minPrice,
+      keccak256(bytes(voucher.uri)),
+      voucher.approvedFor
+    )));
+  }
+
+  function getChainID() external view returns (uint256) {
+    uint256 id;
+    assembly {
+        id := chainid()
+    }
+    return id;
+  }
+
+  function _verify(NFTVoucher calldata voucher) internal view returns (address) {
+    bytes32 digest = _hash(voucher);
+    return ECDSA.recover(digest, voucher.signature);
+  }
+
   function isTrustedForwarder(address forwarder)
     public
     view
@@ -155,6 +164,9 @@ contract POCP is
   {
     return forwarder == _trustedForwarder;
   }
+
+
+  // PROXY FUNCTIONS
 
   function _msgSender()
     internal
