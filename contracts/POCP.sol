@@ -23,8 +23,7 @@ contract POCP is
   DAOManager,
   UUPSUpgradeable,
   EIP712Upgradeable,
-  POCPRoles
-{
+  POCPRoles {
   address private _trustedForwarder;
 
   // constructor() initializer {}
@@ -96,11 +95,14 @@ contract POCP is
     return super.supportsInterface(interfaceId);
   }
 
-  
-  function register(bytes32 daoName) public whenNotPaused returns (bytes32){
+  function register(string memory daoName) public whenNotPaused returns (bytes32) {
     bytes32 daoUuid = _registerDAO(daoName);
-    // addApprover(daoUuid, _msgSender());
     return daoUuid;
+  }
+
+  function getDaoName(bytes32 daoUuid) public view whenNotPaused returns(string memory) {
+    string memory daoName = _getDaoName(daoUuid);
+    return daoName;
   }
 
   function claim(NFTVoucher calldata voucher) public payable whenNotPaused returns (uint256){

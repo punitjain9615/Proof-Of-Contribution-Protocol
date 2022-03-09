@@ -7,6 +7,6 @@
     "outDir": "dist",
     "declaration": true
   },
-  "include": ["./scripts", "./test", "./typechain", "src/signer.ts"],
-  "files": ["./hardhat.config.ts"]
+  "include": ["./scripts", "./test", "./typechain", "src/signer.ts", "test/pocp_upgrade.test.ts", "test/mint.test.ts"],
+  "files": ["hardhat.config.js"]
 }
