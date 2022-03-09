@@ -100,10 +100,15 @@ contract POCP is
     return daoUuid;
   }
 
-  function getDaoName(bytes32 daoUuid) public view whenNotPaused returns(string memory) {
-    string memory daoName = _getDaoName(daoUuid);
+  function getDaoName(uint256 _id) public view whenNotPaused returns(string memory) {
+    string memory daoName = _getDaoName(_id);
     return daoName;
   }
+  function getDaoUuid(uint256 _id) public view whenNotPaused returns(bytes32) {
+    bytes32 daoUuid = _getDaoUuid(_id);
+    return daoUuid;
+  }
+
 
   function claim(NFTVoucher calldata voucher) public payable whenNotPaused returns (uint256){
     address signer = _verify(voucher);

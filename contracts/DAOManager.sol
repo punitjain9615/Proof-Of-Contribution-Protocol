@@ -2,15 +2,23 @@
 pragma solidity ^0.8.4;
 
 contract DAOManager {
-  mapping(bytes32 => string) public daos;
+  mapping(uint256 => bytes32) public daos;
+  mapping(uint256 => string) public daosName;
 
-  function _registerDAO(string memory daoName) internal returns(bytes32){
+  uint private id;
+
+  function _registerDAO(string memory daoName) internal returns(bytes32) {
     bytes32 daoUuid = keccak256(abi.encodePacked(daoName, block.number));
-    daos[daoUuid] = daoName;
-    return daoUuid;
+    uint256 currentID = id;
+    daos[id] = daoUuid;
+    daosName[id] = daoName;
+    id++; 
+    return daos[currentID];
   }
-  function _getDaoName(bytes32 daoUuid) internal view returns (string memory) {
-    string memory daoName =  daos[daoUuid];
-    return daoName;
+  function _getDaoUuid(uint256 _id) internal view returns(bytes32) {
+    return daos[_id];
+  }
+  function _getDaoName(uint256 _id) internal view returns(string memory) {
+    return daosName[_id];
   }
 }
